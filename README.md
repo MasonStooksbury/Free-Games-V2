@@ -3,9 +3,6 @@
 # Free Games V2
 New and improved games grabber for Epic Games that utilizes the Desktop Application rather than the webapp. Designed to run on Windows, but this should also work on Mac and Linux.
 
-# WORK IN PROGRESS
-While this technically works, there's a few things I need to add to make it a little more automagical. Hoping to have that done by today, but am posting it here just so people can get excited again :)
-
 <br><br>
 
 ## Logs in for you
@@ -50,5 +47,5 @@ TODO, but basically, just use `Windows Task Scheduler` or a `CRON` job to run th
 <br><br>
 
 ## TODO
-- Need to pass "Mature Content" warning screen
-- Trim sleep times in between actions to make it faster
+- Test/Trim sleep times in between actions to make it faster
+- Have the script close Epic Games app when finished (for some reason .terminate() and .kill() do not want to work)
