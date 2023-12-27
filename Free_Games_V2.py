@@ -96,7 +96,7 @@ def grabFreeGame():
     while not found:
         pag.scroll(-750)
         matched_image, center_coordinates = findTemplateInScreenshot(captureScreenshot(), str(Path('OCVTemplates').joinpath('free_game_button.png')))
-        sleep(1)
+        sleep(1.5)
         if matched_image is not None:
             found = True
             coords = center_coordinates
@@ -166,7 +166,7 @@ credentials = [getenv("EPIC_EMAIL"), getenv("EPIC_PASSWORD")]
 Popen(rf'{getenv("LAUNCHER_PATH")}')
 
 # Give the app a second to startup
-sleep(6)
+sleep(10)
 
 # Check to see if we're already logged in or not by looking for the "Store" link on the left side of the app
 matched_image, coords = findTemplateInScreenshot(captureScreenshot(), str(Path('OCVTemplates').joinpath('store_button.png')))
