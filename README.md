@@ -3,6 +3,7 @@
 # Free Games V2
 New and improved games grabber for Epic Games that utilizes the Desktop Application rather than the webapp. Designed to run on Windows, but this should also work on Mac and Linux.
 
+If you have an improvement or bug fix, please feel free to make a pull request and I'll try to get to it as soon as I can
 <br><br>
 
 ## Logs in for you
