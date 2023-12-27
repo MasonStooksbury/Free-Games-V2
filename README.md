@@ -25,11 +25,12 @@ While this technically works, there's a few things I need to add to make it a li
 - In a terminal or command prompt run this command to install the required dependencies:
   - `pip install -r requirements.txt`
   - (If that doesn't work, try `pip3` instead of `pip`)
-- Open the `Free_Games_V2.py` file in a text editor (Notepad, VSCode, Sublime, whatever you have)
-- Modify the lines under `REPLACE THESE` to what they should be
-  - `launcher_exe_path`: This is absolute filepath leading to the executable that launches the EpicGamesLauncher (on Windows this is a `.exe` file and on Mac I think this is `.app`). It will probably be named `EpicGamesLauncher` (at least, that's what it's called on Windows. If you have a Mac, please confirm this and post an Issue on this repo. Thank you :))
-  - `email`: This is the email you use to login with
-  - `password`: This is the password you use to login with
+- Open the `.env-sample` file in a text editor (Notepad, VSCode, Sublime, whatever you have)
+- Modify these values to what they should be
+  - `LAUNCHER_PATH`: This is absolute filepath leading to the executable that launches the EpicGamesLauncher on your computer (on Windows this is a `.exe` file and on Mac I think this is `.app`). It will probably be named `EpicGamesLauncher` (at least, that's what it's called on Windows. If you have a Mac, please confirm this and post an Issue on this repo. Thank you :)). Make sure that there are quotes around the path like in the example
+  - `EPIC_EMAIL`: This is the email you use to login with
+  - `EPIC_PASSWORD`: This is the password you use to login with
+- Rename the `.env-sample` file to just `.env`
 - Once everything is modified and saved, go ahead and run the `Free_Games_V2.py` file
   - For Windows: Open a command prompt, navigate to the folder housing the `Free_Games_V2.py` file and run it with `.\Free_Games_V2.py`. You can also just open the folder in the File Explorer and double-click on it
   - For Mac: Open a terminal, navigate to the folder housing the `Free_Games_V2.py` file, and run it with `python3 ./Free_Games_V2.py`.

@@ -1,4 +1,5 @@
+opencv-python
+python-dotenv
+pyautogui
 Pillow
 numpy
-pyautogui
-opencv-python

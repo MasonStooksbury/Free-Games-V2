@@ -1,21 +1,12 @@
+from dotenv import load_dotenv
 from subprocess import Popen
 from PIL import ImageGrab
 from pathlib import Path
 import pyautogui as pag
 from time import sleep
+from os import getenv
 import numpy as np
 import cv2
-
-##############################################################################################################
-#################################         REPLACE THESE           ############################################
-##############################################################################################################
-# Replace this with the path to your EpicGamesLauncher executable path
-launcher_exe_path = r'E:\Programs\Epic Games\Launcher\Engine\Binaries\Win64\EpicGamesLauncher.exe'
-email = 'flump'
-password = 'doople'
-##############################################################################################################
-##############################################################################################################
-##############################################################################################################
 
 
 
@@ -56,7 +47,7 @@ def findTemplateInScreenshot(screenshot, template_path):
 
 
 
-def login():
+def login(email, password):
     # Email box
     matched_image, coords = findTemplateInScreenshot(captureScreenshot(), str(Path('OCVTemplates').joinpath('login_email_box.png')))
 
@@ -163,8 +154,16 @@ def grabFreeGame():
 
 
 
+
+
+# Load credentials from .env file
+load_dotenv()
+
+# Grab credentials from file and put them into an array to unpack later (doing it this way allows for future improvements like multiple-accounts)
+credentials = [getenv("EPIC_EMAIL"), getenv("EPIC_PASSWORD")]
+
 # Open the Epic Games Desktop App
-Popen(launcher_exe_path)
+Popen(rf'{getenv("LAUNCHER_PATH")}')
 
 # Give the app a second to startup
 sleep(6)
@@ -174,7 +173,7 @@ matched_image, coords = findTemplateInScreenshot(captureScreenshot(), str(Path('
 
 # If we aren't logged in, login
 if matched_image is None:
-    login()
+    login(*credentials)
     sleep(5)
 # Otherwise, make sure the window is focused, then get our free game
 else:
