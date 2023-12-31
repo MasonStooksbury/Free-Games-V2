@@ -29,17 +29,17 @@ def findTemplateInScreenshot(screenshot, template_path):
     result = cv2.matchTemplate(gray_screenshot, template, cv2.TM_CCOEFF_NORMED)
     _, max_val, _, max_loc = cv2.minMaxLoc(result)
 
-    # Check for a strong enough match (e.g., 80%)
-    if max_val > 0.8:
+    # Check for a strong enough match (e.g., >=70%)
+    if max_val >= 0.7:
         top_left = max_loc
-        bottom_right = (top_left[0] + template_w, top_left[1] + template_h)
+        # bottom_right = (top_left[0] + template_w, top_left[1] + template_h)
 
         # Calculate the center coordinates
         center_x = top_left[0] + template_w // 2
         center_y = top_left[1] + template_h // 2
 
         # Draw a green rectangle around the matched area
-        cv2.rectangle(screenshot, top_left, bottom_right, (0, 255, 0), 2)
+        # cv2.rectangle(screenshot, top_left, bottom_right, (0, 255, 0), 2)
 
         return screenshot, (center_x, center_y)
     else:
@@ -90,17 +90,19 @@ def login(email, password):
 
 # Grab the free game
 def grabFreeGame():
+    # Make sure we are scrolled to the very top. Since we don't know how far down we are, let's pick some astronomical number to be sure
+    pag.scroll(10000)
     found = False
     coords = ''
     # Search for, then click the 'Free Now' button on the game
     while not found:
-        pag.scroll(-750)
         matched_image, center_coordinates = findTemplateInScreenshot(captureScreenshot(), str(Path('OCVTemplates').joinpath('free_game_button.png')))
         sleep(1.5)
         if matched_image is not None:
             found = True
             coords = center_coordinates
             break
+        pag.scroll(-750)
         
     if found:
         pag.click(x=coords[0], y=coords[1])
