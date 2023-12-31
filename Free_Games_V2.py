@@ -129,6 +129,7 @@ def grabFreeGame():
         print("Couldn't find 'Get' button")
         return None
 
+
     # Fill out EULA if available
     matched_image, coords = findTemplateInScreenshot(captureScreenshot(), str(Path('OCVTemplates').joinpath('eula_checkbox.png')))
 
@@ -141,6 +142,7 @@ def grabFreeGame():
             sleep(5)
     else:
         print("No EULA")
+
 
     # Find and click 'Place Order'
     matched_image, coords = findTemplateInScreenshot(captureScreenshot(), str(Path('OCVTemplates').joinpath('place_order_button.png')))
