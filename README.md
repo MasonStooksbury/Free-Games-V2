@@ -20,7 +20,7 @@ If you have an improvement or bug fix, please feel free to make a pull request a
 - Install Python [from their website](https://www.python.org/downloads/)
   - Be sure to install PIP if it asks
   - Check any boxes related to PATH (this will make execution by any scheduling tool much easier)
-- *DO NOT CLONE THIS REPO*. You'll need to download the repository using the green button and download as a .zip directory. I'm using Large File Storage (LFS) for this repository and it doesn't send the images necessary for template matching when you clone it. I'll work on this soon so that you can clone normally.
+- Clone this repository or download a ZIP using the green `Code` button on GitHub
 - In a terminal or command prompt run this command to install the required dependencies:
   - `pip install -r requirements.txt`
   - (If that doesn't work, try `pip3` instead of `pip`)
