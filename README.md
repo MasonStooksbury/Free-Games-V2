@@ -11,7 +11,7 @@ If you have an improvement or bug fix, please feel free to make a pull request a
 
 <br>
 
-## And grabs the free game!
+## And grabs the free game! (sorry for the terrible quality. I had to compress it to make GitHub happy)
 ![](https://github.com/MasonStooksbury/Free-Games-V2/blob/main/GIFs/grabbing_game.gif)
 
 <br><br>
