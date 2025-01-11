@@ -9,12 +9,22 @@ import numpy as np
 import cv2
 
 
-
 # Function to easily capture screenshots
 def captureScreenshot():
     # Capture the entire screen, convert to a numpy array, then convert to OpenCV format
     return cv2.cvtColor(np.array(ImageGrab.grab()), cv2.COLOR_RGB2BGR)
 
+
+def search_timeout(img, timeout=5):
+    for _ in range(timeout):
+        matched_image, coords = findTemplateInScreenshot(captureScreenshot(),
+                                                         str(Path('OCVTemplates').joinpath(img)))
+        if matched_image is not None:
+            sleep(1)
+            return matched_image, coords
+        sleep(1)
+
+    return None, None
 
 
 def findTemplateInScreenshot(screenshot, template_path):
@@ -46,14 +56,17 @@ def findTemplateInScreenshot(screenshot, template_path):
         return None, None
 
 
-
 def login(email, password):
     # Email box
-    matched_image, coords = findTemplateInScreenshot(captureScreenshot(), str(Path('OCVTemplates').joinpath('login_email_box.png')))
+    matched_image, coords = findTemplateInScreenshot(captureScreenshot(),
+                                                     str(Path('OCVTemplates').joinpath('login_email_box.png')))
 
     if matched_image is not None:
-        pag.click(x=coords[0], y=coords[1])
+        pag.click(x=coords[0], y=coords[1] + 30)
         sleep(1)
+        for i in range(len(email) + 10):
+            pag.press("backspace")
+            pag.press("delete")
     else:
         print('failed email box')
         return None
@@ -62,30 +75,16 @@ def login(email, password):
     pag.write(email)
 
     # Hit Enter to continue
-    pag.press('enter')
-
-    # Wait a bit
-    sleep(5)
-
+    pag.press('tab')
+    sleep(1)
     # Password box
-    matched_image, coords = findTemplateInScreenshot(captureScreenshot(), str(Path('OCVTemplates').joinpath('login_password_box.png')))
-
-    if matched_image is not None:
-        pag.click(x=coords[0], y=coords[1])
-        sleep(1)
-    else:
-        print('failed password')
-        return None
-
-    # Write password into box
     pag.write(password)
 
     # Hit Enter to continue
     pag.press('enter')
 
     # Wait a while
-    sleep(5)
-
+    sleep(7)
 
 
 # Grab the free game
@@ -96,92 +95,82 @@ def grabFreeGame():
     coords = ''
     # Search for, then click the 'Free Now' button on the game
     while not found:
-        matched_image, center_coordinates = findTemplateInScreenshot(captureScreenshot(), str(Path('OCVTemplates').joinpath('free_game_button.png')))
-        sleep(1.5)
+        matched_image, center_coordinates = findTemplateInScreenshot(captureScreenshot(),
+                                                                     str(Path('OCVTemplates').joinpath(
+                                                                         'free_game_button.png')))
+
         if matched_image is not None:
             found = True
             coords = center_coordinates
             break
         pag.scroll(-750)
-        
+        sleep(1)
+
     if found:
         pag.click(x=coords[0], y=coords[1])
-        sleep(5)
     else:
         return None
-    
 
     # Navigate Mature Content Warning screen
-    matched_image, coords = findTemplateInScreenshot(captureScreenshot(), str(Path('OCVTemplates').joinpath('continue_button.png')))
+    matched_image, coords = search_timeout('continue_button.png')
 
     if matched_image is not None:
         pag.click(x=coords[0], y=coords[1])
-        sleep(5)
     else:
         print("No Mature Content Warning screen")
 
-
     # Find and click 'Get'
-    matched_image, coords = findTemplateInScreenshot(captureScreenshot(), str(Path('OCVTemplates').joinpath('get_game_button.png')))
+    matched_image, coords = search_timeout('get_game_button.png', 7)
 
     if matched_image is not None:
         pag.click(x=coords[0], y=coords[1])
-        sleep(5)
+
     else:
-        print("Couldn't find 'Get' button")
+        print("Couldn't find 'Get' button checking for in library")
+        matched_image, coords = findTemplateInScreenshot(captureScreenshot(),
+                                                         str(Path('OCVTemplates').joinpath('in_library.png')))
+
+        if matched_image is not None:
+            print("Found game in library")
+
         return None
 
-
-    # Fill out EULA if available
-    matched_image, coords = findTemplateInScreenshot(captureScreenshot(), str(Path('OCVTemplates').joinpath('eula_checkbox.png')))
-
-    if matched_image is not None:
-        pag.click(x=coords[0], y=coords[1])
-        sleep(2)
-        matched_image, coords = findTemplateInScreenshot(captureScreenshot(), str(Path('OCVTemplates').joinpath('eula_accept_button.png')))
-        if matched_image is not None:
-            pag.click(x=coords[0], y=coords[1])
-            sleep(5)
-    else:
-        print("No EULA")
-
-
     # Find and click 'Place Order'
-    matched_image, coords = findTemplateInScreenshot(captureScreenshot(), str(Path('OCVTemplates').joinpath('place_order_button.png')))
+    matched_image, coords = search_timeout('place_order_button.png')
 
     if matched_image is not None:
         pag.click(x=coords[0], y=coords[1])
-        sleep(5)
     else:
         print("Couldn't find 'Place Order' button")
         return None
 
+    matched_image, coords = search_timeout('eula_accept_button.png')
+    # Accept EULA
+
+    if matched_image is not None:
+        pag.click(x=coords[0], y=coords[1])
+    else:
+        print("No EULA")
 
 
+if __name__ == "__main__":
+    # Load credentials from .env file
+    load_dotenv()
 
+    # Grab credentials from file and put them into an array to unpack later (doing it this way allows for future improvements like multiple-accounts)
+    credentials = [getenv("EPIC_EMAIL"), getenv("EPIC_PASSWORD")]
 
-# Load credentials from .env file
-load_dotenv()
+    # Open the Epic Games Desktop App
+    Popen(rf'{getenv("LAUNCHER_PATH")}')
 
-# Grab credentials from file and put them into an array to unpack later (doing it this way allows for future improvements like multiple-accounts)
-credentials = [getenv("EPIC_EMAIL"), getenv("EPIC_PASSWORD")]
+    matched_image, coords = search_timeout('store_button.png', 10)
 
-# Open the Epic Games Desktop App
-Popen(rf'{getenv("LAUNCHER_PATH")}')
+    # If we aren't logged in, login
+    if matched_image is None:
+        login(*credentials)
+    # Otherwise, make sure the window is focused, then get our free game
+    else:
+        pag.click(x=coords[0], y=coords[1])
+        sleep(2)
 
-# Give the app a second to startup
-sleep(10)
-
-# Check to see if we're already logged in or not by looking for the "Store" link on the left side of the app
-matched_image, coords = findTemplateInScreenshot(captureScreenshot(), str(Path('OCVTemplates').joinpath('store_button.png')))
-
-# If we aren't logged in, login
-if matched_image is None:
-    login(*credentials)
-    sleep(5)
-# Otherwise, make sure the window is focused, then get our free game
-else:
-    pag.click(x=coords[0], y=coords[1])
-    sleep(2)
-
-grabFreeGame()
+    grabFreeGame()
