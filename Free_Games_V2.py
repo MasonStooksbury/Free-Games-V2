@@ -1,3 +1,4 @@
+import sys
 from dotenv import load_dotenv
 from subprocess import Popen
 from pathlib import Path
@@ -14,8 +15,30 @@ def capture_screenshot():
     return cv2.cvtColor(np.array(ImageGrab.grab()), cv2.COLOR_RGB2BGR)
 
 
+def get_resource_path(relative_path):
+    """
+    Return the absolute path to the resource, whether running as a script or as a PyInstaller EXE.
+    Handles --onefile and --onedir builds.
+    """
+    # For PyInstaller --onefile builds, _MEIPASS is where files are unpacked
+    if hasattr(sys, "_MEIPASS"):
+        base_path = Path(sys._MEIPASS)
+    else:
+        base_path = Path(__file__).parent
+
+    # Check if PyInstaller used "_internal" folder
+    if (base_path / "_internal").exists():
+        base_path = base_path / "_internal"
+
+    return base_path / relative_path
+
+
+def get_template_path(template_name):
+    return str(get_resource_path(Path("OCVTemplates") / template_name))
+
+
 def search_with_timeout(template_name, timeout=5):
-    template_path = Path("OCVTemplates") / template_name
+    template_path = get_template_path(template_name)
     for _ in range(timeout):
         screenshot = capture_screenshot()
         match, coords = find_best_match(screenshot, str(template_path))
@@ -26,7 +49,8 @@ def search_with_timeout(template_name, timeout=5):
     return None, None
 
 
-def find_best_match(screenshot, template_path, threshold=0.7):
+def find_best_match(screenshot, template_name, threshold=0.7):
+    template_path = get_template_path(template_name)
     template = cv2.imread(template_path, cv2.IMREAD_GRAYSCALE)
     h, w = template.shape
 
@@ -40,7 +64,8 @@ def find_best_match(screenshot, template_path, threshold=0.7):
     return None, None
 
 
-def find_all_matches(screenshot, template_path, threshold=0.7):
+def find_all_matches(screenshot, template_name, threshold=0.7):
+    template_path = get_template_path(template_name)
     template = cv2.imread(template_path, cv2.IMREAD_GRAYSCALE)
     h, w = template.shape
 
@@ -54,9 +79,7 @@ def find_all_matches(screenshot, template_path, threshold=0.7):
 
 def login(email, password):
     screenshot = capture_screenshot()
-    match, coords = find_best_match(
-        screenshot, str(Path("OCVTemplates") / "login_email_box.png")
-    )
+    match, coords = find_best_match(screenshot, "login_email_box.png")
     if match is None:
         print("Failed to find email input box")
         return
@@ -81,9 +104,7 @@ def grab_free_game(skip=0, max_scrolls=15):
 
     while scroll_count < max_scrolls:
         screenshot = capture_screenshot()
-        match, matches = find_all_matches(
-            screenshot, str(Path("OCVTemplates") / "free_game_button.png")
-        )
+        match, matches = find_all_matches(screenshot, "free_game_button.png")
 
         if len(matches) > skip:
             coords = matches[skip]
@@ -109,9 +130,7 @@ def grab_free_game(skip=0, max_scrolls=15):
 
     # Check if already in library
     screenshot = capture_screenshot()
-    match, coords = find_best_match(
-        screenshot, str(Path("OCVTemplates") / "in_library.png")
-    )
+    match, coords = find_best_match(screenshot, "in_library.png")
     if match is not None:
         print("Game is already in library.")
         return
@@ -147,11 +166,37 @@ def grab_free_game(skip=0, max_scrolls=15):
         print("No EULA")
 
 
+def get_base_dir():
+    if hasattr(sys, "_MEIPASS"):
+        # Running from PyInstaller onefile bundle
+        base_dir = Path(sys.executable).parent
+    else:
+        # Running from source
+        base_dir = Path(__file__).parent
+    return base_dir
+
+
 def main():
-    load_dotenv()
+    env_path = get_base_dir() / ".env"
+    print(f"Loading environment variables from: {env_path}")
+
+    if not env_path.exists():
+        print(f"Warning: .env file not found")
+    else:
+        load_dotenv(env_path)
+
     email = getenv("EPIC_EMAIL")
     password = getenv("EPIC_PASSWORD")
     launcher_path = getenv("LAUNCHER_PATH")
+
+    if not all([email, password, launcher_path]):
+        print(
+            "Missing environment variables. "
+            "Make sure EPIC_EMAIL, EPIC_PASSWORD, and LAUNCHER_PATH are specified "
+            "in a .env file next to the executable."
+        )
+        input("\nPress Enter to exit...")
+        return
 
     Popen(rf"{launcher_path}")
 
@@ -175,6 +220,7 @@ def main():
             sleep(2)
 
     print("Finished.")
+    input("\nPress Enter to exit...")
 
 
 if __name__ == "__main__":
