@@ -97,25 +97,31 @@ def grab_free_game(skip=0, max_scrolls=15):
     else:
         return True  # Reached end of scroll attempts
 
+    print("Free game found.")
+
     # Mature content warning
+    print("Awaiting Mature Content Warning screen.")
     match, coords = search_with_timeout("continue_button.png")
     if match is not None:
         pag.click(*coords)
     else:
-        print("No Mature Content Warning screen")
+        print("No Mature Content Warning screen.")
+
+    # Check if already in library
+    screenshot = capture_screenshot()
+    match, coords = find_best_match(
+        screenshot, str(Path("OCVTemplates") / "in_library.png")
+    )
+    if match is not None:
+        print("Game is already in library.")
+        return
 
     # Click 'Get' button
     match, coords = search_with_timeout("get_game_button.png", 7)
     if match is not None:
         pag.click(*coords)
     else:
-        print("Couldn't find 'Get' button; checking if already in library")
-        screenshot = capture_screenshot()
-        match, coords = find_best_match(
-            screenshot, str(Path("OCVTemplates") / "in_library.png")
-        )
-        if match is not None:
-            print("Found game in library")
+        print("Couldn't find 'Get' button. Skipping.")
         return
 
     sleep(1)
@@ -157,10 +163,10 @@ def main():
         pag.click(*coords)
         sleep(2)
 
-    for i in range(10):
-        reached_end = grab_free_game(skip=i)
-        if reached_end:
-            print("Reached the end with no more results.")
+    for skip in range(10):
+        reached_max_scrolls = grab_free_game(skip, max_scrolls=20)
+        if reached_max_scrolls:
+            print("Reached the end of search.")
             break
 
         match, coords = search_with_timeout("store_button.png", 10)
