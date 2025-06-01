@@ -3,3 +3,4 @@ python-dotenv
 pyautogui
 Pillow
 numpy
+pyinstaller

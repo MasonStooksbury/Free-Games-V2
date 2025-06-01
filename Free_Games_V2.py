@@ -1,176 +1,227 @@
+import sys
 from dotenv import load_dotenv
 from subprocess import Popen
-from PIL import ImageGrab
 from pathlib import Path
-import pyautogui as pag
-from time import sleep
+from PIL import ImageGrab
 from os import getenv
+from time import sleep
+import pyautogui as pag
 import numpy as np
 import cv2
 
 
-# Function to easily capture screenshots
-def captureScreenshot():
-    # Capture the entire screen, convert to a numpy array, then convert to OpenCV format
+# Utility to grab the screen and convert to OpenCV BGR format
+def capture_screenshot():
     return cv2.cvtColor(np.array(ImageGrab.grab()), cv2.COLOR_RGB2BGR)
 
 
-def search_timeout(img, timeout=5):
-    for _ in range(timeout):
-        matched_image, coords = findTemplateInScreenshot(captureScreenshot(),
-                                                         str(Path('OCVTemplates').joinpath(img)))
-        if matched_image is not None:
-            sleep(1)
-            return matched_image, coords
-        sleep(1)
+def get_resource_path(relative_path):
+    """
+    Return the absolute path to the resource, whether running as a script or as a PyInstaller EXE.
+    Handles --onefile and --onedir builds.
+    """
+    # For PyInstaller --onefile builds, _MEIPASS is where files are unpacked
+    if hasattr(sys, "_MEIPASS"):
+        base_path = Path(sys._MEIPASS)
+    else:
+        base_path = Path(__file__).parent
 
+    # Check if PyInstaller used "_internal" folder
+    if (base_path / "_internal").exists():
+        base_path = base_path / "_internal"
+
+    return base_path / relative_path
+
+
+def get_template_path(template_name):
+    return str(get_resource_path(Path("OCVTemplates") / template_name))
+
+
+def search_with_timeout(template_name, timeout=5):
+    template_path = get_template_path(template_name)
+    for _ in range(timeout):
+        screenshot = capture_screenshot()
+        match, coords = find_best_match(screenshot, str(template_path))
+        if match is not None:
+            sleep(1)
+            return match, coords
+        sleep(1)
     return None, None
 
 
-def findTemplateInScreenshot(screenshot, template_path):
-    # Read the template image
-    template = cv2.imread(template_path, 0)
-    template_w, template_h = template.shape[::-1]
+def find_best_match(screenshot, template_name, threshold=0.7):
+    template_path = get_template_path(template_name)
+    template = cv2.imread(template_path, cv2.IMREAD_GRAYSCALE)
+    h, w = template.shape
 
-    # Convert screenshot to grayscale for template matching
-    gray_screenshot = cv2.cvtColor(screenshot, cv2.COLOR_BGR2GRAY)
-
-    # Perform template matching
-    result = cv2.matchTemplate(gray_screenshot, template, cv2.TM_CCOEFF_NORMED)
+    gray = cv2.cvtColor(screenshot, cv2.COLOR_BGR2GRAY)
+    result = cv2.matchTemplate(gray, template, cv2.TM_CCOEFF_NORMED)
     _, max_val, _, max_loc = cv2.minMaxLoc(result)
 
-    # Check for a strong enough match (e.g., >=70%)
-    if max_val >= 0.7:
-        top_left = max_loc
-        # bottom_right = (top_left[0] + template_w, top_left[1] + template_h)
+    if max_val >= threshold:
+        center = (max_loc[0] + w // 2, max_loc[1] + h // 2)
+        return screenshot, center
+    return None, None
 
-        # Calculate the center coordinates
-        center_x = top_left[0] + template_w // 2
-        center_y = top_left[1] + template_h // 2
 
-        # Draw a green rectangle around the matched area
-        # cv2.rectangle(screenshot, top_left, bottom_right, (0, 255, 0), 2)
+def find_all_matches(screenshot, template_name, threshold=0.7):
+    template_path = get_template_path(template_name)
+    template = cv2.imread(template_path, cv2.IMREAD_GRAYSCALE)
+    h, w = template.shape
 
-        return screenshot, (center_x, center_y)
-    else:
-        return None, None
+    gray = cv2.cvtColor(screenshot, cv2.COLOR_BGR2GRAY)
+    result = cv2.matchTemplate(gray, template, cv2.TM_CCOEFF_NORMED)
+    locations = np.where(result >= threshold)
+
+    centers = [(pt[0] + w // 2, pt[1] + h // 2) for pt in zip(*locations[::-1])]
+    return (screenshot, centers) if centers else (None, [])
 
 
 def login(email, password):
-    # Email box
-    matched_image, coords = findTemplateInScreenshot(captureScreenshot(),
-                                                     str(Path('OCVTemplates').joinpath('login_email_box.png')))
+    screenshot = capture_screenshot()
+    match, coords = find_best_match(screenshot, "login_email_box.png")
+    if match is None:
+        print("Failed to find email input box")
+        return
 
-    if matched_image is not None:
-        pag.click(x=coords[0], y=coords[1] + 30)
-        sleep(1)
-        for i in range(len(email) + 10):
-            pag.press("backspace")
-            pag.press("delete")
-    else:
-        print('failed email box')
-        return None
-
-    # Write email into box
-    pag.write(email)
-
-    # Hit Enter to continue
-    pag.press('tab')
+    pag.click(coords[0], coords[1] + 30)
     sleep(1)
-    # Password box
+    for _ in range(len(email) + 10):
+        pag.press("backspace")
+        pag.press("delete")
+
+    pag.write(email)
+    pag.press("tab")
+    sleep(1)
     pag.write(password)
-
-    # Hit Enter to continue
-    pag.press('enter')
-
-    # Wait a while
+    pag.press("enter")
     sleep(7)
 
 
-# Grab the free game
-def grabFreeGame():
-    # Make sure we are scrolled to the very top. Since we don't know how far down we are, let's pick some astronomical number to be sure
-    pag.scroll(10000)
-    found = False
-    coords = ''
-    # Search for, then click the 'Free Now' button on the game
-    while not found:
-        matched_image, center_coordinates = findTemplateInScreenshot(captureScreenshot(),
-                                                                     str(Path('OCVTemplates').joinpath(
-                                                                         'free_game_button.png')))
+def grab_free_game(skip=0, max_scrolls=15):
+    pag.scroll(100000)  # Scroll to top
+    scroll_count = 0
 
-        if matched_image is not None:
-            found = True
-            coords = center_coordinates
+    while scroll_count < max_scrolls:
+        screenshot = capture_screenshot()
+        match, matches = find_all_matches(screenshot, "free_game_button.png")
+
+        if len(matches) > skip:
+            coords = matches[skip]
+            pag.click(*coords)
             break
+
+        skip -= len(matches)
         pag.scroll(-750)
+        scroll_count += 1
         sleep(1)
-
-    if found:
-        pag.click(x=coords[0], y=coords[1])
     else:
-        return None
+        return True  # Reached end of scroll attempts
 
-    # Navigate Mature Content Warning screen
-    matched_image, coords = search_timeout('continue_button.png')
+    print("Free game found.")
 
-    if matched_image is not None:
-        pag.click(x=coords[0], y=coords[1])
+    # Mature content warning
+    print("Awaiting Mature Content Warning screen.")
+    match, coords = search_with_timeout("continue_button.png")
+    if match is not None:
+        pag.click(*coords)
     else:
-        print("No Mature Content Warning screen")
+        print("No Mature Content Warning screen.")
 
-    # Find and click 'Get'
-    matched_image, coords = search_timeout('get_game_button.png', 7)
+    # Check if already in library
+    screenshot = capture_screenshot()
+    match, coords = find_best_match(screenshot, "in_library.png")
+    if match is not None:
+        print("Game is already in library.")
+        return
 
-    if matched_image is not None:
-        pag.click(x=coords[0], y=coords[1])
-
+    # Click 'Get' button
+    match, coords = search_with_timeout("get_game_button.png", 7)
+    if match is not None:
+        pag.click(*coords)
     else:
-        print("Couldn't find 'Get' button checking for in library")
-        matched_image, coords = findTemplateInScreenshot(captureScreenshot(),
-                                                         str(Path('OCVTemplates').joinpath('in_library.png')))
+        print("Couldn't find 'Get' button. Skipping.")
+        return
 
-        if matched_image is not None:
-            print("Found game in library")
+    sleep(1)
 
-        return None
+    # Accept 'Refund and Right of Withdrawal'
+    match, coords = search_with_timeout("eula_accept_button.png")
+    if match is not None:
+        pag.click(*coords)
 
-    # Find and click 'Place Order'
-    matched_image, coords = search_timeout('place_order_button.png')
-
-    if matched_image is not None:
-        pag.click(x=coords[0], y=coords[1])
+    # Click 'Place Order'
+    match, coords = search_with_timeout("place_order_button.png")
+    if match is not None:
+        pag.click(*coords)
     else:
         print("Couldn't find 'Place Order' button")
-        return None
+        return
 
-    matched_image, coords = search_timeout('eula_accept_button.png')
     # Accept EULA
-
-    if matched_image is not None:
-        pag.click(x=coords[0], y=coords[1])
+    match, coords = search_with_timeout("eula_accept_button.png")
+    if match is not None:
+        pag.click(*coords)
     else:
         print("No EULA")
 
 
-if __name__ == "__main__":
-    # Load credentials from .env file
-    load_dotenv()
-
-    # Grab credentials from file and put them into an array to unpack later (doing it this way allows for future improvements like multiple-accounts)
-    credentials = [getenv("EPIC_EMAIL"), getenv("EPIC_PASSWORD")]
-
-    # Open the Epic Games Desktop App
-    Popen(rf'{getenv("LAUNCHER_PATH")}')
-
-    matched_image, coords = search_timeout('store_button.png', 10)
-
-    # If we aren't logged in, login
-    if matched_image is None:
-        login(*credentials)
-    # Otherwise, make sure the window is focused, then get our free game
+def get_base_dir():
+    if hasattr(sys, "_MEIPASS"):
+        # Running from PyInstaller onefile bundle
+        base_dir = Path(sys.executable).parent
     else:
-        pag.click(x=coords[0], y=coords[1])
+        # Running from source
+        base_dir = Path(__file__).parent
+    return base_dir
+
+
+def main():
+    env_path = get_base_dir() / ".env"
+    print(f"Loading environment variables from: {env_path}")
+
+    if not env_path.exists():
+        print(f"Warning: .env file not found")
+    else:
+        load_dotenv(env_path)
+
+    email = getenv("EPIC_EMAIL")
+    password = getenv("EPIC_PASSWORD")
+    launcher_path = getenv("LAUNCHER_PATH")
+
+    if not all([email, password, launcher_path]):
+        print(
+            "Missing environment variables. "
+            "Make sure EPIC_EMAIL, EPIC_PASSWORD, and LAUNCHER_PATH are specified "
+            "in a .env file next to the executable."
+        )
+        input("\nPress Enter to exit...")
+        return
+
+    Popen(rf"{launcher_path}")
+
+    match, coords = search_with_timeout("store_button.png", timeout=10)
+
+    if match is None:
+        login(email, password)
+    else:
+        pag.click(*coords)
         sleep(2)
 
-    grabFreeGame()
+    for skip in range(10):
+        reached_max_scrolls = grab_free_game(skip, max_scrolls=20)
+        if reached_max_scrolls:
+            print("Reached the end of search.")
+            break
+
+        match, coords = search_with_timeout("store_button.png", 10)
+        if match is not None:
+            pag.click(*coords)
+            sleep(2)
+
+    print("Finished.")
+    input("\nPress Enter to exit...")
+
+
+if __name__ == "__main__":
+    main()
